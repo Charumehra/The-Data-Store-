@@ -1,5 +1,5 @@
 const Post = require("../models/post");
-require("../models/User");
+const User = require("../models/User");
 
 const createPost = async (req, res) => {
   try {
@@ -35,10 +35,25 @@ const deletePost = async (req, res) => {
 
 const getTopPosts = async (req, res) => {
   try {
-    const topPosts = await Post.find()
-      .sort({ createdAt: -1 })
-      .limit(3)
-      .populate("authorId");
+    const topPosts = await Post.aggregate([
+      { $sort: { createdAt: -1 } },
+      { $limit: 3 },
+      {
+        $lookup: {
+          from: "users",
+          localField: "authorId",
+          foreignField: "_id",
+          as: "authorId",
+        },
+      },
+      {
+        $unwind: {
+          path: "$authorId",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ]);
+
     res
       .status(200)
       .json({ message: "Top posts fetched successfully", data: topPosts });
